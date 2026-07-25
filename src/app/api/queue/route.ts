@@ -5,19 +5,22 @@ import { QueueRepositoryFactory } from '@/lib/oop/QueueRepository';
 
 function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
   const realIp = request.headers.get('x-real-ip');
   if (realIp) return realIp.trim();
   return '127.0.0.1';
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const repository = QueueRepositoryFactory.getRepository();
     const queueTickets = await repository.getAllTickets();
     const tickets = queueTickets.map((t) => t.toJSON());
     return NextResponse.json({ success: true, data: tickets });
-  } catch {
+  } catch (error) {
+    // Hide internal stack trace from public response
     return NextResponse.json(
       { success: false, error: 'Gagal mengambil data antrian' },
       { status: 500 }
@@ -27,6 +30,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // 1. Rate Limiting Check (Max 5 requests per minute per IP)
     const clientIp = getClientIp(request);
     const { isRateLimited, remaining } = checkRateLimit(clientIp, 5, 60 * 1000);
 
@@ -47,6 +51,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // 2. Parse JSON body safely
     let rawBody: any;
     try {
       rawBody = await request.json();
@@ -57,6 +62,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // 3. Zod Input Validation & Sanitization
     const validationResult = queueTicketSchema.safeParse(rawBody);
 
     if (!validationResult.success) {
@@ -73,12 +79,16 @@ export async function POST(request: Request) {
         },
         {
           status: 400,
-          headers: { 'X-RateLimit-Remaining': remaining.toString() },
+          headers: {
+            'X-RateLimit-Remaining': remaining.toString(),
+          },
         }
       );
     }
 
     const validData = validationResult.data;
+
+    // 4. Execute Business Logic via Abstraction Layer
     const repository = QueueRepositoryFactory.getRepository();
     const newTicket = await repository.createTicket({
       customerName: validData.customerName,
@@ -97,10 +107,13 @@ export async function POST(request: Request) {
       },
       {
         status: 201,
-        headers: { 'X-RateLimit-Remaining': remaining.toString() },
+        headers: {
+          'X-RateLimit-Remaining': remaining.toString(),
+        },
       }
     );
-  } catch {
+  } catch (error) {
+    // Safe error handling without stack trace leak
     return NextResponse.json(
       { success: false, error: 'Terjadi kesalahan internal pada server' },
       { status: 500 }
