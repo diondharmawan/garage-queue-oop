@@ -20,7 +20,6 @@ export async function GET(request: Request) {
     const tickets = queueTickets.map((t) => t.toJSON());
     return NextResponse.json({ success: true, data: tickets });
   } catch (error) {
-    // Hide internal stack trace from public response
     return NextResponse.json(
       { success: false, error: 'Gagal mengambil data antrian' },
       { status: 500 }
@@ -71,10 +70,12 @@ export async function POST(request: Request) {
         message: issue.message,
       }));
 
+      const firstError = formattedErrors[0]?.message || 'Data tidak sesuai format';
+
       return NextResponse.json(
         {
           success: false,
-          error: 'Validasi input gagal',
+          error: `Validasi gagal: ${firstError}`,
           details: formattedErrors,
         },
         {
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
       motorModel: validData.motorModel,
       motorAgeYears: validData.motorAgeYears,
       serviceType: validData.serviceType,
-      notes: validData.notes,
+      notes: validData.notes || '',
     });
 
     return NextResponse.json(
@@ -113,7 +114,6 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
-    // Safe error handling without stack trace leak
     return NextResponse.json(
       { success: false, error: 'Terjadi kesalahan internal pada server' },
       { status: 500 }

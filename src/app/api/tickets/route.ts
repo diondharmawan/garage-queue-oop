@@ -65,10 +65,12 @@ export async function POST(request: Request) {
         message: issue.message,
       }));
 
+      const firstError = formattedErrors[0]?.message || 'Data tidak sesuai format';
+
       return NextResponse.json(
         {
           success: false,
-          error: 'Validasi input gagal',
+          error: `Validasi gagal: ${firstError}`,
           details: formattedErrors,
         },
         {
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
       motorModel: validData.motorModel,
       motorAgeYears: validData.motorAgeYears,
       serviceType: validData.serviceType,
-      notes: validData.notes,
+      notes: validData.notes || '',
     });
 
     return NextResponse.json(
