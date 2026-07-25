@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ServiceType {
+  LIGHT
+  HEAVY
+}
+
+enum TicketStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Ticket {
+  id                String       @id @default(uuid())
+  ticketNumber      String       @unique
+  customerName      String
+  plateNumber       String
+  motorModel        String
+  motorAgeYears     Int          @default(0)
+  serviceType       ServiceType  @default(LIGHT)
+  serviceName       String
+  estimatedDuration Int          // dalam menit
+  notes             String?
+  status            TicketStatus @default(WAITING)
+  pitNumber         Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
